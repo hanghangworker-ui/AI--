@@ -8,6 +8,8 @@ export interface Student {
   major: string
   email: string
   avatarColor: string
+  histGpa?: number // 历史累计绩点（新注册学生为 8.0 / 0 学分）
+  histCredits?: number // 历史已修学分
 }
 
 export interface Course {

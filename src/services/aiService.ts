@@ -6,6 +6,7 @@ import {
   getTasks, getNotifications,
 } from './studentService'
 import { toISO, todayISO } from '../data/mockData'
+import { isBackendOnline, hasToken, apiAIChat } from './api'
 
 export interface AIAnswer {
   content: string
@@ -159,8 +160,16 @@ async function remoteAnswer(question: string, cfg: AIProviderConfig): Promise<st
   return data.choices?.[0]?.message?.content ?? ''
 }
 
-// ---------- 统一入口：失败回退链 ----------
+// ---------- 统一入口：后端代理优先 → 远程直连 → 本地规则回退 ----------
 export async function askAI(question: string, cfg: AIProviderConfig, _ctx: AIContext): Promise<AIAnswer> {
+  // 1) 本地后端在线：走服务端代理（密钥只在服务端 .env，数据授权以数据库为准）
+  if (isBackendOnline() && hasToken()) {
+    try {
+      const ans = await apiAIChat(question, cfg.provider, cfg.model, cfg.baseUrl, _ctx.lang)
+      if (ans && ans.content) return ans
+    } catch { /* 落入下一条链路 */ }
+  }
+  // 2) 前端直连远程 Provider（开发调试用；生产建议一律走后端代理）
   if (cfg.provider !== 'builtin' && cfg.apiKey) {
     try {
       const content = await remoteAnswer(question, cfg)

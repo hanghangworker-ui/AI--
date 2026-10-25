@@ -122,8 +122,12 @@ const AppShell: React.FC = () => {
       </header>
 
       {/* ===== 内容区 ===== */}
-      <main className="md:pl-60 px-4 md:px-8 py-6 pb-24 md:pb-10 max-w-[1200px]">
-        <Outlet />
+      {/* 注意：max-w 必须放在内层容器 —— 若与 md:pl-60 同层，侧栏 240px 会占掉宽度预算，
+          内容区会被压到 ~896px，多栏卡片随即被挤爆 */}
+      <main className="md:pl-60">
+        <div className="px-4 md:px-8 py-6 pb-24 md:pb-10 max-w-[1200px]">
+          <Outlet />
+        </div>
       </main>
 
       {/* ===== 移动端底部导航 ===== */}

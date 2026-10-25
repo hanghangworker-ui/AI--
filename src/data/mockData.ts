@@ -61,13 +61,13 @@ export const timetable: TimetableEntry[] = [
 // 考勤记录：总体出勤率 87%
 export const attendance: AttendanceRecord[] = (() => {
   const records: AttendanceRecord[] = []
-  // 每门课固定比例的出勤模式；"机器学习"接近警戒线（83%）
+  // 每门课固定比例的出勤模式；总体 87%（计划书口径），"机器学习" 83% 低于警戒线
   const ratio: Record<string, { present: number; absent: number; late: number }> = {
-    'c-ds': { present: 17, absent: 1, late: 2 },
-    'c-dm': { present: 17, absent: 1, late: 1 },
-    'c-ml': { present: 14, absent: 2, late: 2 },
-    'c-db': { present: 16, absent: 1, late: 1 },
-    'c-oo': { present: 18, absent: 0, late: 0 },
+    'c-ds': { present: 15, absent: 3, late: 2 },  // 17/20 = 85%
+    'c-dm': { present: 17, absent: 2, late: 1 },  // 18/20 = 90%
+    'c-ml': { present: 16, absent: 4, late: 3 },  // 19/23 = 83%（低于警戒线）
+    'c-db': { present: 16, absent: 2, late: 2 },  // 18/20 = 90%
+    'c-oo': { present: 19, absent: 3, late: 0 },  // 19/22 = 86%
   }
   let idx = 0
   for (const c of courses) {

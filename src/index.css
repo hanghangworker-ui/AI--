@@ -42,6 +42,12 @@
   .label { @apply block text-sm font-medium text-slate-600 mb-1.5; }
   .chip { @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium; }
   .fade-in { animation: fadeIn 0.35s ease both; }
+  /* 自适应分组栅格：列数跟随容器实际宽度（每列 ≥ 最小宽度），
+     比硬编码断点更稳 —— 侧栏 + 内边距会吃掉宽度预算，断点常算不准导致窄栏挤爆内容 */
+  .grid-auto-fit {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--col-min, 240px)), 1fr));
+  }
 }
 
 @keyframes fadeIn {

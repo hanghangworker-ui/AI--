@@ -71,50 +71,65 @@ const StudyTasks: React.FC = () => {
   const done = tasks.filter(x => x.status === 'done')
   const progress = tasks.length ? Math.round((done.length / tasks.length) * 100) : 0
 
-  const groups: { key: string; items: StudyTask[] }[] = [
-    { key: 'task.today', items: tasks.filter(x => x.status !== 'done' && x.dueDate <= todayISO) },
-    { key: 'task.doing', items: tasks.filter(x => x.status === 'doing') },
-    { key: 'task.finished', items: done },
+  // 分组：按截止日期归入今日/进行中/计划中/已完成，覆盖全部任务且互不重复
+  const isOverdue = (d: string) => d < todayISO
+  const groups: { key: string; tone: 'amber' | 'primary' | 'slate' | 'green'; items: StudyTask[] }[] = [
+    { key: 'task.today', tone: 'amber', items: tasks.filter(x => x.status !== 'done' && x.dueDate <= todayISO) },
+    { key: 'task.doing', tone: 'primary', items: tasks.filter(x => x.status === 'doing' && x.dueDate > todayISO) },
+    { key: 'task.upcoming', tone: 'slate', items: tasks.filter(x => x.status === 'todo' && x.dueDate > todayISO) },
+    { key: 'task.finished', tone: 'green', items: done },
   ]
 
   const TaskRow: React.FC<{ task: StudyTask }> = ({ task }) => {
     const c = task.courseId ? courseById(task.courseId) : null
     const color = c ? COURSE_COLORS[c.color] ?? COURSE_COLORS.indigo : null
     const dueSoon = task.status !== 'done' && task.dueDate <= addDaysISO(1)
+    const overdue = task.status !== 'done' && isOverdue(task.dueDate)
     return (
-      <div className={`group flex items-center gap-3 px-3.5 py-3 rounded-xl transition-all ${
-        task.status === 'done' ? 'bg-slate-50/60' : 'bg-white hover:bg-primary-50/30 border border-slate-100'
+      // 堆叠式布局：标题独占整行可换行，元信息与操作按钮在第二行自动折行 —— 窄栏下也不会被压成竖排字
+      <div className={`rounded-xl px-3 py-2.5 transition-all ${
+        task.status === 'done' ? 'bg-slate-50/60' : overdue ? 'bg-red-50/40 border border-red-100' : 'bg-white hover:bg-primary-50/30 border border-slate-100'
       }`}>
-        {/* 状态按钮 */}
-        {task.status === 'done' ? (
-          <button onClick={() => setStatus(task.id, 'todo')} className="w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center shrink-0">
-            <Check size={13} />
-          </button>
-        ) : (
-          <button onClick={() => setStatus(task.id, task.status === 'doing' ? 'done' : 'doing')}
-            className="w-6 h-6 rounded-full border-2 border-slate-200 hover:border-emerald-400 flex items-center justify-center shrink-0 transition-colors">
-            {task.status === 'doing' && <Play size={11} className="text-primary-500" />}
-          </button>
-        )}
-        <div className="flex-1 min-w-0">
-          <div className={`text-sm truncate ${task.status === 'done' ? 'text-slate-400 line-through' : 'text-slate-700 font-medium'}`}>
-            {task.title}
+        <div className="flex items-start gap-2.5">
+          {/* 状态按钮 */}
+          {task.status === 'done' ? (
+            <button onClick={() => setStatus(task.id, 'todo')} title={t('task.markUndone')}
+              className="mt-0.5 w-5 h-5 rounded-full bg-emerald-500 text-white flex items-center justify-center shrink-0">
+              <Check size={12} />
+            </button>
+          ) : (
+            <button onClick={() => setStatus(task.id, task.status === 'doing' ? 'done' : 'doing')}
+              title={task.status === 'doing' ? t('task.markDone') : t('task.markDoing')}
+              className="mt-0.5 w-5 h-5 rounded-full border-2 border-slate-200 hover:border-emerald-400 flex items-center justify-center shrink-0 transition-colors">
+              {task.status === 'doing' && <Play size={10} className="text-primary-500" />}
+            </button>
+          )}
+          <div className="flex-1 min-w-0">
+            {/* 标题独占整行、可折两行，不被徽章挤压 */}
+            <div className={`text-[13px] leading-snug break-words line-clamp-2 ${
+              task.status === 'done' ? 'text-slate-400 line-through' : 'text-slate-700 font-medium'
+            }`}>
+              {task.title}
+            </div>
+            {/* 元信息 + 操作：整体可折行，空间不足时另起一行而非挤压标题 */}
+            <div className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[11px] text-slate-400">
+              <Badge tone={task.priority === 'high' ? 'red' : task.priority === 'medium' ? 'amber' : 'slate'}
+                className="!px-1.5 shrink-0">{t(`common.${task.priority}`)}</Badge>
+              {c && <span className="flex items-center gap-1"><span className={`w-1.5 h-1.5 rounded-full ${color!.dot}`} />{lang === 'zh' ? c.name : c.nameEn}</span>}
+              <span className="flex items-center gap-1"><Clock3 size={11} />{task.estimatedMin} {t('common.minutes')}</span>
+              <span className={`flex items-center gap-1 ${overdue ? 'text-red-500 font-medium' : dueSoon ? 'text-amber-500 font-medium' : ''}`}>
+                <CalendarDays size={11} />{overdue && `${t('task.overdue')} · `}{t('task.due')} {task.dueDate.slice(5)}
+              </span>
+              {task.fromAI && <Badge tone="violet"><Sparkles size={10} />{t('task.fromAI')}</Badge>}
+              {/* 操作按钮：始终可见（触屏无 hover），弱化配色，靠右不占固定宽度 */}
+              <span className="flex items-center gap-0.5 ml-auto">
+                <button onClick={() => editTask(task)} title={t('common.edit')}
+                  className="p-1 rounded-md text-slate-300 hover:text-primary-600 hover:bg-primary-50 transition-colors"><Pencil size={12} /></button>
+                <button onClick={() => delTask(task.id)} title={t('common.delete')}
+                  className="p-1 rounded-md text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors"><Trash2 size={12} /></button>
+              </span>
+            </div>
           </div>
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-0.5 text-[11px] text-slate-400">
-            {c && <span className="flex items-center gap-1"><span className={`w-1.5 h-1.5 rounded-full ${color!.dot}`} />{lang === 'zh' ? c.name : c.nameEn}</span>}
-            <span className="flex items-center gap-1"><Clock3 size={11} />{t('task.est')} {task.estimatedMin} {t('common.minutes')}</span>
-            <span className={`flex items-center gap-1 ${dueSoon ? 'text-amber-500 font-medium' : ''}`}>
-              <CalendarDays size={11} />{t('task.due')} {task.dueDate.slice(5)}
-            </span>
-            {task.fromAI && <Badge tone="violet"><Sparkles size={10} />{t('task.fromAI')}</Badge>}
-          </div>
-        </div>
-        <Badge tone={task.priority === 'high' ? 'red' : task.priority === 'medium' ? 'amber' : 'slate'}>
-          {t(`common.${task.priority}`)}
-        </Badge>
-        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-          <button onClick={() => editTask(task)} className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100"><Pencil size={13} /></button>
-          <button onClick={() => delTask(task.id)} className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50"><Trash2 size={13} /></button>
         </div>
       </div>
     )
@@ -181,34 +196,47 @@ const StudyTasks: React.FC = () => {
             <div className="text-sm font-semibold text-slate-700">{t('task.add')}</div>
             <button onClick={() => setShowAdd(false)} className="text-slate-400 hover:text-slate-600"><X size={16} /></button>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-2.5">
-            <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
-              onKeyDown={e => e.key === 'Enter' && addTask()}
-              placeholder={t('task.newTitle')} className="input md:col-span-2" />
-            <select value={form.courseId} onChange={e => setForm(f => ({ ...f, courseId: e.target.value }))} className="input">
-              <option value="">{lang === 'zh' ? '关联课程（选填）' : `Course (${t('common.optional')})`}</option>
-              {getCourses().map(c => <option key={c.id} value={c.id}>{lang === 'zh' ? c.name : c.nameEn}</option>)}
-            </select>
-            <select value={form.priority} onChange={e => setForm(f => ({ ...f, priority: e.target.value as StudyTask['priority'] }))} className="input">
-              {(['high', 'medium', 'low'] as const).map(p => <option key={p} value={p}>{t(`common.${p}`)}</option>)}
-            </select>
-            <div className="flex gap-2">
-              <input type="number" min={5} step={5} value={form.est} title={t('task.est')}
-                onChange={e => setForm(f => ({ ...f, est: Number(e.target.value) }))} className="input !w-20" />
-              <input type="date" value={form.due} onChange={e => setForm(f => ({ ...f, due: e.target.value }))} className="input flex-1" />
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="col-span-2 min-w-0">
+              <label className="label">{t('task.fTitle')}</label>
+              <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
+                onKeyDown={e => e.key === 'Enter' && addTask()}
+                placeholder={t('task.newTitle')} className="input" />
+            </div>
+            <div className="col-span-2 min-w-0">
+              <label className="label">{t('task.fCourse')}</label>
+              <select value={form.courseId} onChange={e => setForm(f => ({ ...f, courseId: e.target.value }))} className="input">
+                <option value="">{lang === 'zh' ? '不关联课程' : 'No course'}</option>
+                {getCourses().map(c => <option key={c.id} value={c.id}>{lang === 'zh' ? c.name : c.nameEn}</option>)}
+              </select>
+            </div>
+            <div className="col-span-1 min-w-0">
+              <label className="label">{t('task.fPriority')}</label>
+              <select value={form.priority} onChange={e => setForm(f => ({ ...f, priority: e.target.value as StudyTask['priority'] }))} className="input">
+                {(['high', 'medium', 'low'] as const).map(p => <option key={p} value={p}>{t(`common.${p}`)}</option>)}
+              </select>
+            </div>
+            <div className="col-span-1 min-w-0">
+              <label className="label">{t('task.fEst')}</label>
+              <input type="number" min={5} step={5} value={form.est}
+                onChange={e => setForm(f => ({ ...f, est: Number(e.target.value) }))} className="input" />
+            </div>
+            <div className="col-span-2 min-w-0">
+              <label className="label">{t('task.fDue')}</label>
+              <input type="date" value={form.due} onChange={e => setForm(f => ({ ...f, due: e.target.value }))} className="input" />
             </div>
           </div>
           <button onClick={addTask} className="btn-primary mt-3 w-full"><Plus size={14} />{t('task.add')}</button>
         </Card>
       )}
 
-      {/* 任务分组 */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+      {/* 任务分组：列数按可用宽度自适应（每列不小于 240px），避免窄屏被挤成竖排字 */}
+      <div className="grid-auto-fit gap-5">
         {groups.map(g => (
           <Card key={g.key}>
             <div className="flex items-center justify-between mb-3">
               <span className="text-sm font-semibold text-slate-700">{t(g.key)}</span>
-              <Badge tone={g.key === 'task.finished' ? 'green' : g.key === 'task.doing' ? 'primary' : 'amber'}>{g.items.length}</Badge>
+              <Badge tone={g.tone}>{g.items.length}</Badge>
             </div>
             <div className="space-y-2">
               {g.items.length === 0

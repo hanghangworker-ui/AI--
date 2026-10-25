@@ -1,0 +1,17 @@
+{
+  "name": "campusflow-server",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "CampusFlow AI 学生智能成长平台 - 本地后端（SQLite + JWT + AI 密钥代理）",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node --experimental-sqlite src/index.js",
+    "seed": "node --experimental-sqlite src/seed.js --reset"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2"
+  }
+}
